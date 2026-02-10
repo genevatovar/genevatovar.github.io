@@ -12,20 +12,20 @@ const svg = d3.select("#dot-plot")
     .append("g")
     .attr("transform", `translate(${margin.left},${margin.top})`);
 
-d3.csv("weather.csv").then(rawData => {
-    
-    // Parse precipitation data by month
+// Parse precipitation data by month
+function loadData(rawData) {
     rawData.forEach(d => {
         d.month = d["Date.Month"];
         d.precip = parseFloat(d["Data.Precipitation"]);
     });
-    
-    const validData = rawData.filter(d => d.month && !isNaN(d.precip));
-    
+    return rawData.filter(d => d.month && !isNaN(d.precip));
+}
+
+// Calculate total precipitation per month
+function calculateMonthlyTotal(validData) {
     const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", 
                        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     
-    // Calculate total precipitation per month
     const monthlyTotal = {};
     for (let i = 1; i <= 12; i++) {
         const monthStr = i.toString();
@@ -35,12 +35,14 @@ d3.csv("weather.csv").then(rawData => {
         }
     }
     
-    const data = Object.entries(monthlyTotal).map(([month, precip]) => ({
+    return Object.entries(monthlyTotal).map(([month, precip]) => ({
         month: month,
         precip: precip
     }));
-    
-    // Create scales
+}
+
+// Create scales
+function createScales(data) {
     const x = d3.scaleBand()
         .domain(data.map(d => d.month))
         .range([0, width])
@@ -50,10 +52,14 @@ d3.csv("weather.csv").then(rawData => {
         .domain([0.1, d3.max(data, d => d.precip)])
         .range([height, 0]);
     
-    // Add axes
+    return {x, y};
+}
+
+// Add axes
+function drawAxes(scales) {
     svg.append("g")
         .attr("transform", `translate(0,${height})`)
-        .call(d3.axisBottom(x))
+        .call(d3.axisBottom(scales.x))
         .selectAll("text")
         .style("text-anchor", "end")
         .attr("dx", "-.8em")
@@ -61,9 +67,11 @@ d3.csv("weather.csv").then(rawData => {
         .attr("transform", "rotate(-45)");
     
     svg.append("g")
-        .call(d3.axisLeft(y));
-    
-    // Add labels
+        .call(d3.axisLeft(scales.y));
+}
+
+// Add labels
+function addLabels() {
     svg.append("text")
         .attr("x", width / 2)
         .attr("y", height + 65)
@@ -84,32 +92,52 @@ d3.csv("weather.csv").then(rawData => {
         .style("font-size", "16px")
         .style("font-weight", "bold")
         .text("Monthly Total Precipitation");
-    
-    // Draw dots
+}
+
+// Draw dots
+function drawDots(data, scales) {
     svg.selectAll("circle")
         .data(data)
         .enter()
         .append("circle")
-        .attr("cx", d => x(d.month) + x.bandwidth() / 2)
-        .attr("cy", d => y(d.precip))
+        .attr("cx", d => scales.x(d.month) + scales.x.bandwidth() / 2)
+        .attr("cy", d => scales.y(d.precip))
         .attr("r", 6)
         .attr("fill", "steelblue")
         .on("mouseover", function(event, d) {
-            d3.select(this).attr("fill", "orange").attr("r", 8);
-            
-            svg.append("text")
-                .attr("class", "tooltip")
-                .attr("x", x(d.month) + x.bandwidth() / 2)
-                .attr("y", y(d.precip) - 15)
-                .attr("text-anchor", "middle")
-                .style("font-weight", "bold")
-                .style("font-size", "14px")
-                .text(d.precip.toFixed(2) + " in");
+            showTooltip(d, scales);
         })
         .on("mouseout", function() {
-            d3.select(this).attr("fill", "steelblue").attr("r", 6);
-            svg.selectAll(".tooltip").remove();
+            hideTooltip();
         });
+}
+
+function showTooltip(d, scales) {
+    d3.select(event.currentTarget).attr("fill", "orange").attr("r", 8);
+    
+    svg.append("text")
+        .attr("class", "tooltip")
+        .attr("x", scales.x(d.month) + scales.x.bandwidth() / 2)
+        .attr("y", scales.y(d.precip) - 15)
+        .attr("text-anchor", "middle")
+        .style("font-weight", "bold")
+        .style("font-size", "14px")
+        .text(d.precip.toFixed(2) + " in");
+}
+
+function hideTooltip() {
+    d3.select(event.currentTarget).attr("fill", "steelblue").attr("r", 6);
+    svg.selectAll(".tooltip").remove();
+}
+
+d3.csv("weather.csv").then(rawData => {
+    const validData = loadData(rawData);
+    const data = calculateMonthlyTotal(validData);
+    const scales = createScales(data);
+    
+    drawAxes(scales);
+    addLabels();
+    drawDots(data, scales);
 });
 
 // SOURCES BELOW:

@@ -12,24 +12,24 @@ const svg = d3.select("#heatmap")
     .append("g")
     .attr("transform", `translate(${margin.left},${margin.top})`);
 
-d3.csv("weather.csv").then(rawData => {
-    
-    // Parse temperature data by month and week
+// Parse temperature data by month and week
+function loadData(rawData) {
     rawData.forEach(d => {
         d.month = d["Date.Month"];
         d.week = d["Date.Week of"];
         d.temp = parseFloat(d["Data.Temperature.Avg Temp"]);
     });
-    
-    const validData = rawData.filter(d => d.month && d.week && !isNaN(d.temp));
-    
+    return rawData.filter(d => d.month && d.week && !isNaN(d.temp));
+}
+
+// Organize data by month and week
+function organizeHeatmapData(validData) {
     const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", 
                        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     
     const weeks = [...new Set(validData.map(d => d.week))].sort((a, b) => parseInt(a) - parseInt(b));
     const weekLabels = weeks.slice(0, 7).map(w => `Week ${w}`);
     
-    // Organize data by month and week
     const heatmapData = [];
     for (let m = 1; m <= 12; m++) {
         const monthStr = m.toString();
@@ -49,7 +49,11 @@ d3.csv("weather.csv").then(rawData => {
         });
     }
     
-    // Create scales
+    return {heatmapData, monthNames, weekLabels};
+}
+
+// Create scales
+function createScales(heatmapData, monthNames, weekLabels) {
     const x = d3.scaleBand()
         .domain(monthNames)
         .range([0, width])
@@ -64,15 +68,21 @@ d3.csv("weather.csv").then(rawData => {
         .interpolator(d3.interpolateRdYlBu)
         .domain([d3.max(heatmapData, d => d.temp), d3.min(heatmapData, d => d.temp)]);
     
-    // Add axes
+    return {x, y, color};
+}
+
+// Add axes
+function drawAxes(scales) {
     svg.append("g")
         .attr("transform", `translate(0,${height})`)
-        .call(d3.axisBottom(x));
+        .call(d3.axisBottom(scales.x));
     
     svg.append("g")
-        .call(d3.axisLeft(y));
-    
-    // Add labels
+        .call(d3.axisLeft(scales.y));
+}
+
+// Add labels
+function addLabels() {
     svg.append("text")
         .attr("x", width / 2)
         .attr("y", height + 45)
@@ -93,45 +103,57 @@ d3.csv("weather.csv").then(rawData => {
         .style("font-size", "16px")
         .style("font-weight", "bold")
         .text("Temperature by Month and Week");
-    
-    // Draw heatmap cells
+}
+
+// Draw heatmap cells
+function drawHeatmap(heatmapData, scales) {
     svg.selectAll("rect")
         .data(heatmapData)
         .enter()
         .append("rect")
-        .attr("x", d => x(d.month))
-        .attr("y", d => y(d.week))
-        .attr("width", x.bandwidth())
-        .attr("height", y.bandwidth())
-        .attr("fill", d => color(d.temp))
+        .attr("x", d => scales.x(d.month))
+        .attr("y", d => scales.y(d.week))
+        .attr("width", scales.x.bandwidth())
+        .attr("height", scales.y.bandwidth())
+        .attr("fill", d => scales.color(d.temp))
         .attr("stroke", "white")
         .attr("stroke-width", 2)
         .on("mouseover", function(event, d) {
-            d3.select(this).attr("stroke", "black").attr("stroke-width", 3);
-            
-            svg.append("text")
-                .attr("class", "tooltip")
-                .attr("x", x(d.month) + x.bandwidth() / 2)
-                .attr("y", y(d.week) + y.bandwidth() / 2)
-                .attr("text-anchor", "middle")
-                .attr("alignment-baseline", "middle")
-                .style("font-weight", "bold")
-                .style("font-size", "12px")
-                .style("fill", "black")
-                .style("pointer-events", "none")
-                .text(d.temp.toFixed(1) + "°F");
+            showTooltip(d, scales);
         })
         .on("mouseout", function() {
-            d3.select(this).attr("stroke", "white").attr("stroke-width", 2);
-            svg.selectAll(".tooltip").remove();
+            hideTooltip();
         });
+}
+
+function showTooltip(d, scales) {
+    d3.select(event.currentTarget).attr("stroke", "black").attr("stroke-width", 3);
     
-    // Add color legend
+    svg.append("text")
+        .attr("class", "tooltip")
+        .attr("x", scales.x(d.month) + scales.x.bandwidth() / 2)
+        .attr("y", scales.y(d.week) + scales.y.bandwidth() / 2)
+        .attr("text-anchor", "middle")
+        .attr("alignment-baseline", "middle")
+        .style("font-weight", "bold")
+        .style("font-size", "12px")
+        .style("fill", "black")
+        .style("pointer-events", "none")
+        .text(d.temp.toFixed(1) + "°F");
+}
+
+function hideTooltip() {
+    d3.select(event.currentTarget).attr("stroke", "white").attr("stroke-width", 2);
+    svg.selectAll(".tooltip").remove();
+}
+
+// Add color legend
+function addLegend(scales) {
     const legendWidth = 300;
     const legendHeight = 15;
     
     const legendScale = d3.scaleLinear()
-        .domain(color.domain())
+        .domain(scales.color.domain())
         .range([0, legendWidth]);
     
     const legend = svg.append("g")
@@ -146,7 +168,7 @@ d3.csv("weather.csv").then(rawData => {
         const offset = i / numStops;
         gradient.append("stop")
             .attr("offset", `${offset * 100}%`)
-            .attr("stop-color", color(legendScale.invert(offset * legendWidth)));
+            .attr("stop-color", scales.color(legendScale.invert(offset * legendWidth)));
     }
     
     legend.append("rect")
@@ -157,6 +179,17 @@ d3.csv("weather.csv").then(rawData => {
     legend.append("g")
         .attr("transform", `translate(0,${legendHeight})`)
         .call(d3.axisBottom(legendScale).ticks(5).tickFormat(d => d.toFixed(0) + "°F"));
+}
+
+d3.csv("weather.csv").then(rawData => {
+    const validData = loadData(rawData);
+    const {heatmapData, monthNames, weekLabels} = organizeHeatmapData(validData);
+    const scales = createScales(heatmapData, monthNames, weekLabels);
+    
+    drawAxes(scales);
+    addLabels();
+    drawHeatmap(heatmapData, scales);
+    addLegend(scales);
 });
 
 // SOURCES BELOW:

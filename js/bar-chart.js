@@ -12,20 +12,20 @@ const svg = d3.select("#bar-chart")
     .append("g")
     .attr("transform", `translate(${margin.left},${margin.top})`);
 
-d3.csv("weather.csv").then(rawData => {
-    
-    // Parse temperature data by month
+// Parse temperature data by month
+function loadData(rawData) {
     rawData.forEach(d => {
         d.month = d["Date.Month"];
         d.temp = parseFloat(d["Data.Temperature.Avg Temp"]);
     });
-    
-    const validData = rawData.filter(d => d.month && !isNaN(d.temp));
-    
+    return rawData.filter(d => d.month && !isNaN(d.temp));
+}
+
+// Calculate average temperature per month
+function calculateMonthlyAverage(validData) {
     const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", 
                        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     
-    // Calculate average temperature per month
     const monthlyAvg = {};
     for (let i = 1; i <= 12; i++) {
         const monthStr = i.toString();
@@ -35,12 +35,14 @@ d3.csv("weather.csv").then(rawData => {
         }
     }
     
-    const data = Object.entries(monthlyAvg).map(([month, temp]) => ({
+    return Object.entries(monthlyAvg).map(([month, temp]) => ({
         month: month,
         temp: temp
     }));
-    
-    // Create scales
+}
+
+// Create scales
+function createScales(data) {
     const x = d3.scaleBand()
         .domain(data.map(d => d.month))
         .range([0, width])
@@ -50,10 +52,14 @@ d3.csv("weather.csv").then(rawData => {
         .domain([0, d3.max(data, d => d.temp) * 1.1])
         .range([height, 0]);
     
-    // Add axes
+    return {x, y};
+}
+
+// Add axes
+function drawAxes(scales) {
     svg.append("g")
         .attr("transform", `translate(0,${height})`)
-        .call(d3.axisBottom(x))
+        .call(d3.axisBottom(scales.x))
         .selectAll("text")
         .style("text-anchor", "end")
         .attr("dx", "-.8em")
@@ -61,9 +67,11 @@ d3.csv("weather.csv").then(rawData => {
         .attr("transform", "rotate(-45)");
     
     svg.append("g")
-        .call(d3.axisLeft(y));
-    
-    // Add labels
+        .call(d3.axisLeft(scales.y));
+}
+
+// Add labels
+function addLabels() {
     svg.append("text")
         .attr("x", width / 2)
         .attr("y", height + 65)
@@ -84,33 +92,53 @@ d3.csv("weather.csv").then(rawData => {
         .style("font-size", "16px")
         .style("font-weight", "bold")
         .text("Average Monthly Temperature");
-    
-    // Draw bars
+}
+
+// Draw bars
+function drawBars(data, scales) {
     svg.selectAll("rect")
         .data(data)
         .enter()
         .append("rect")
-        .attr("x", d => x(d.month))
-        .attr("y", d => y(d.temp))
-        .attr("width", x.bandwidth())
-        .attr("height", d => height - y(d.temp))
+        .attr("x", d => scales.x(d.month))
+        .attr("y", d => scales.y(d.temp))
+        .attr("width", scales.x.bandwidth())
+        .attr("height", d => height - scales.y(d.temp))
         .attr("fill", "steelblue")
         .on("mouseover", function(event, d) {
-            d3.select(this).attr("fill", "orange");
-            
-            svg.append("text")
-                .attr("class", "tooltip")
-                .attr("x", x(d.month) + x.bandwidth() / 2)
-                .attr("y", y(d.temp) - 10)
-                .attr("text-anchor", "middle")
-                .style("font-weight", "bold")
-                .style("font-size", "14px")
-                .text(d.temp.toFixed(1) + "°F");
+            showTooltip(d, scales);
         })
         .on("mouseout", function() {
-            d3.select(this).attr("fill", "steelblue");
-            svg.selectAll(".tooltip").remove();
+            hideTooltip();
         });
+}
+
+function showTooltip(d, scales) {
+    d3.select(event.currentTarget).attr("fill", "orange");
+    
+    svg.append("text")
+        .attr("class", "tooltip")
+        .attr("x", scales.x(d.month) + scales.x.bandwidth() / 2)
+        .attr("y", scales.y(d.temp) - 10)
+        .attr("text-anchor", "middle")
+        .style("font-weight", "bold")
+        .style("font-size", "14px")
+        .text(d.temp.toFixed(1) + "°F");
+}
+
+function hideTooltip() {
+    d3.select(event.currentTarget).attr("fill", "steelblue");
+    svg.selectAll(".tooltip").remove();
+}
+
+d3.csv("weather.csv").then(rawData => {
+    const validData = loadData(rawData);
+    const data = calculateMonthlyAverage(validData);
+    const scales = createScales(data);
+    
+    drawAxes(scales);
+    addLabels();
+    drawBars(data, scales);
 });
 
 // SOURCES BELOW:

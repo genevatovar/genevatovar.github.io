@@ -1,3 +1,18 @@
+* {
+  font-family: "Raleway", sans-serif;
+  /* font-weight: <weight>; */
+  font-style: normal;
+  /* text-align: center; */
+}
+
+h1 {
+    text-align: center;
+}
+
+#back {
+    text-align: left;
+}
+
 body {
     font-family: Arial, sans-serif;
     margin: 20px;

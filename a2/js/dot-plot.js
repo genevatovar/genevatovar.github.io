@@ -1,157 +1,129 @@
 // Dot Plot is used for Monthly Total Precipitation
 
-// Dimensions
-const margin = {top: 40, right: 30, bottom: 80, left: 70};
-const width = 700 - margin.left - margin.right;
-const height = 400 - margin.top - margin.bottom;
+let table;
+let data = [];
+let monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-const svg = d3.select("#dot-plot")
-    .append("svg")
-    .attr("width", width + margin.left + margin.right)
-    .attr("height", height + margin.top + margin.bottom)
-    .append("g")
-    .attr("transform", `translate(${margin.left},${margin.top})`);
-
-// Parse precipitation data by month
-function loadData(rawData) {
-    rawData.forEach(d => {
-        d.month = d["Date.Month"];
-        d.precip = parseFloat(d["Data.Precipitation"]);
-    });
-    return rawData.filter(d => d.month && !isNaN(d.precip));
+function preload() {
+    table = loadTable('weather.csv', 'csv', 'header');
 }
 
-// Calculate total precipitation per month
-function calculateMonthlyTotal(validData) {
-    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", 
-                       "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+function setup() {
+    createCanvas(800, 600).parent('dot-plot');
+    calculateMonthlyTotals();
+    noLoop();
+}
+
+// Parse precipitation data by month
+function calculateMonthlyTotals() {
+    let monthPrecip = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     
-    const monthlyTotal = {};
-    for (let i = 1; i <= 12; i++) {
-        const monthStr = i.toString();
-        const monthData = validData.filter(d => d.month === monthStr);
-        if (monthData.length > 0) {
-            monthlyTotal[monthNames[i-1]] = d3.sum(monthData, d => d.precip);
+    for (let i = 0; i < table.getRowCount(); i++) {
+        let month = int(table.getString(i, 'Date.Month')) - 1;
+        let precip = float(table.getString(i, 'Data.Precipitation'));
+        
+        if (month >= 0 && month < 12 && !isNaN(precip)) {
+            monthPrecip[month] += precip;
         }
     }
     
-    return Object.entries(monthlyTotal).map(([month, precip]) => ({
-        month: month,
-        precip: precip
-    }));
+    // Calculate total precipitation per month
+    for (let i = 0; i < 12; i++) {
+        data.push({month: monthNames[i], precip: monthPrecip[i]});
+    }
 }
 
-// Create scales
-function createScales(data) {
-    const x = d3.scaleBand()
-        .domain(data.map(d => d.month))
-        .range([0, width])
-        .padding(0.3);
+function draw() {
+    background(255);
     
-    const y = d3.scaleLog()
-        .domain([0.1, d3.max(data, d => d.precip)])
-        .range([height, 0]);
+    let maxPrecip = max(data.map(d => d.precip));
+    let dotSpacing = 600 / 12;
     
-    return {x, y};
+    translate(80, 60);
+    
+    drawTitle();
+    drawAxes(maxPrecip, dotSpacing);
+    drawDots(maxPrecip, dotSpacing);
+}
+
+function drawTitle() {
+    fill(0);
+    textAlign(CENTER);
+    textSize(16);
+    textStyle(BOLD);
+    text("Monthly Total Precipitation", 300, -20);
+    textStyle(NORMAL);
 }
 
 // Add axes
-function drawAxes(scales) {
-    svg.append("g")
-        .attr("transform", `translate(0,${height})`)
-        .call(d3.axisBottom(scales.x))
-        .selectAll("text")
-        .style("text-anchor", "end")
-        .attr("dx", "-.8em")
-        .attr("dy", ".15em")
-        .attr("transform", "rotate(-45)");
+function drawAxes(maxPrecip, dotSpacing) {
+    stroke(0);
+    line(0, 400, 600, 400);
+    line(0, 0, 0, 400);
     
-    svg.append("g")
-        .call(d3.axisLeft(scales.y));
-}
-
-// Add labels
-function addLabels() {
-    svg.append("text")
-        .attr("x", width / 2)
-        .attr("y", height + 65)
-        .attr("text-anchor", "middle")
-        .text("Month");
+    fill(0);
+    noStroke();
+    textSize(12);
     
-    svg.append("text")
-        .attr("transform", "rotate(-90)")
-        .attr("x", -height / 2)
-        .attr("y", -50)
-        .attr("text-anchor", "middle")
-        .text("Total Precipitation (inches)");
+    for (let i = 0; i < data.length; i++) {
+        textAlign(CENTER);
+        text(data[i].month, i * dotSpacing + dotSpacing / 2, 420);
+    }
     
-    svg.append("text")
-        .attr("x", width / 2)
-        .attr("y", -10)
-        .attr("text-anchor", "middle")
-        .style("font-size", "16px")
-        .style("font-weight", "bold")
-        .text("Monthly Total Precipitation");
+    // Create scales (log scale for y-axis)
+    textAlign(RIGHT);
+    let logMax = log(maxPrecip) / log(10);
+    
+    for (let i = 0; i <= 5; i++) {
+        let logVal = map(i, 0, 5, -1, logMax);
+        let precipVal = pow(10, logVal);
+        let y = map(logVal, -1, logMax, 400, 0);
+        
+        text(precipVal.toFixed(1), -10, y + 5);
+        
+        stroke(200);
+        line(0, y, 600, y);
+        noStroke();
+    }
+    
+    // Add labels
+    textAlign(CENTER);
+    textSize(14);
+    text("Month", 300, 460);
+    
+    push();
+    translate(-50, 200);
+    rotate(-HALF_PI);
+    text("Total Precipitation (inches)", 0, 0);
+    pop();
 }
 
 // Draw dots
-function drawDots(data, scales) {
-    svg.selectAll("circle")
-        .data(data)
-        .enter()
-        .append("circle")
-        .attr("cx", d => scales.x(d.month) + scales.x.bandwidth() / 2)
-        .attr("cy", d => scales.y(d.precip))
-        .attr("r", 6)
-        .attr("fill", "steelblue")
-        .on("mouseover", function(event, d) {
-            showTooltip(d, scales);
-        })
-        .on("mouseout", function() {
-            hideTooltip();
-        });
-}
-
-function showTooltip(d, scales) {
-    d3.select(event.currentTarget).attr("fill", "orange").attr("r", 8);
+function drawDots(maxPrecip, dotSpacing) {
+    let logMax = log(maxPrecip) / log(10);
     
-    svg.append("text")
-        .attr("class", "tooltip")
-        .attr("x", scales.x(d.month) + scales.x.bandwidth() / 2)
-        .attr("y", scales.y(d.precip) - 15)
-        .attr("text-anchor", "middle")
-        .style("font-weight", "bold")
-        .style("font-size", "14px")
-        .text(d.precip.toFixed(2) + " in");
+    for (let i = 0; i < data.length; i++) {
+        let x = i * dotSpacing + dotSpacing / 2;
+        let logVal = log(max(data[i].precip, 0.1)) / log(10);
+        let y = map(logVal, -1, logMax, 400, 0);
+        
+        let distance = dist(mouseX, mouseY, 80 + x, 60 + y);
+        
+        if (distance < 15) {
+            fill(255, 165, 0);
+            circle(x, y, 16);
+            
+            fill(0);
+            textAlign(CENTER);
+            textSize(14);
+            text(data[i].precip.toFixed(2) + " in", x, y - 20);
+        } else {
+            fill(70, 130, 180);
+            circle(x, y, 12);
+        }
+    }
 }
 
-function hideTooltip() {
-    d3.select(event.currentTarget).attr("fill", "steelblue").attr("r", 6);
-    svg.selectAll(".tooltip").remove();
+function mouseMoved() {
+    redraw();
 }
-
-d3.csv("weather.csv").then(rawData => {
-    const validData = loadData(rawData);
-    const data = calculateMonthlyTotal(validData);
-    const scales = createScales(data);
-    
-    drawAxes(scales);
-    addLabels();
-    drawDots(data, scales);
-});
-
-// SOURCES BELOW:
-
-//D3.js Official Documentation
-// https://d3js.org/
-// For learning D3 syntax, scales, axes, and data binding
-
-
-// D3 Graph Gallery
-// https://d3-graph-gallery.com/
-// Examples of bar charts, scatter plots, and heatmaps
-
-
-// Observable D3 Tutorials
-// https://observablehq.com/@d3/learn-d3
-// Interactive D3 learning resources

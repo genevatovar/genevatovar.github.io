@@ -1,158 +1,123 @@
 // Bar Chart is used for Average Monthly Temperature
 
-// Dimensions
-const margin = {top: 40, right: 30, bottom: 80, left: 70};
-const width = 700 - margin.left - margin.right;
-const height = 400 - margin.top - margin.bottom;
+let table;
+let data = [];
+let monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-const svg = d3.select("#bar-chart")
-    .append("svg")
-    .attr("width", width + margin.left + margin.right)
-    .attr("height", height + margin.top + margin.bottom)
-    .append("g")
-    .attr("transform", `translate(${margin.left},${margin.top})`);
-
-// Parse temperature data by month
-function loadData(rawData) {
-    rawData.forEach(d => {
-        d.month = d["Date.Month"];
-        d.temp = parseFloat(d["Data.Temperature.Avg Temp"]);
-    });
-    return rawData.filter(d => d.month && !isNaN(d.temp));
+function preload() {
+    table = loadTable('weather.csv', 'csv', 'header');
 }
 
-// Calculate average temperature per month
-function calculateMonthlyAverage(validData) {
-    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", 
-                       "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+function setup() {
+    createCanvas(800, 600).parent('bar-chart');
+    calculateMonthlyAverages();
+    noLoop();
+}
+
+// Parse temperature data by month
+function calculateMonthlyAverages() {
+    let monthTemps = [[], [], [], [], [], [], [], [], [], [], [], []];
     
-    const monthlyAvg = {};
-    for (let i = 1; i <= 12; i++) {
-        const monthStr = i.toString();
-        const monthData = validData.filter(d => d.month === monthStr);
-        if (monthData.length > 0) {
-            monthlyAvg[monthNames[i-1]] = d3.mean(monthData, d => d.temp);
+    for (let i = 0; i < table.getRowCount(); i++) {
+        let month = int(table.getString(i, 'Date.Month')) - 1;
+        let temp = float(table.getString(i, 'Data.Temperature.Avg Temp'));
+        
+        if (month >= 0 && month < 12 && !isNaN(temp)) {
+            monthTemps[month].push(temp);
         }
     }
     
-    return Object.entries(monthlyAvg).map(([month, temp]) => ({
-        month: month,
-        temp: temp
-    }));
+    // Calculate average temperature per month
+    for (let i = 0; i < 12; i++) {
+        if (monthTemps[i].length > 0) {
+            let sum = monthTemps[i].reduce((a, b) => a + b, 0);
+            let avg = sum / monthTemps[i].length;
+            data.push({month: monthNames[i], temp: avg});
+        }
+    }
 }
 
-// Create scales
-function createScales(data) {
-    const x = d3.scaleBand()
-        .domain(data.map(d => d.month))
-        .range([0, width])
-        .padding(0.3);
+function draw() {
+    background(255);
     
-    const y = d3.scaleLinear()
-        .domain([0, d3.max(data, d => d.temp) * 1.1])
-        .range([height, 0]);
+    let maxTemp = max(data.map(d => d.temp));
+    let barWidth = 600 / 12;
     
-    return {x, y};
+    translate(80, 60);
+    
+    drawTitle();
+    drawAxes(maxTemp, barWidth);
+    drawBars(maxTemp, barWidth);
+}
+
+function drawTitle() {
+    fill(0);
+    textAlign(CENTER);
+    textSize(16);
+    textStyle(BOLD);
+    text("Average Monthly Temperature", 300, -20);
+    textStyle(NORMAL);
 }
 
 // Add axes
-function drawAxes(scales) {
-    svg.append("g")
-        .attr("transform", `translate(0,${height})`)
-        .call(d3.axisBottom(scales.x))
-        .selectAll("text")
-        .style("text-anchor", "end")
-        .attr("dx", "-.8em")
-        .attr("dy", ".15em")
-        .attr("transform", "rotate(-45)");
+function drawAxes(maxTemp, barWidth) {
+    stroke(0);
+    line(0, 400, 600, 400);
+    line(0, 0, 0, 400);
     
-    svg.append("g")
-        .call(d3.axisLeft(scales.y));
-}
-
-// Add labels
-function addLabels() {
-    svg.append("text")
-        .attr("x", width / 2)
-        .attr("y", height + 65)
-        .attr("text-anchor", "middle")
-        .text("Month");
+    fill(0);
+    noStroke();
+    textSize(12);
     
-    svg.append("text")
-        .attr("transform", "rotate(-90)")
-        .attr("x", -height / 2)
-        .attr("y", -50)
-        .attr("text-anchor", "middle")
-        .text("Avg Temperature (°F)");
+    for (let i = 0; i < data.length; i++) {
+        textAlign(CENTER);
+        text(data[i].month, i * barWidth + barWidth / 2, 420);
+    }
     
-    svg.append("text")
-        .attr("x", width / 2)
-        .attr("y", -10)
-        .attr("text-anchor", "middle")
-        .style("font-size", "16px")
-        .style("font-weight", "bold")
-        .text("Average Monthly Temperature");
+    textAlign(RIGHT);
+    for (let i = 0; i <= 5; i++) {
+        let y = map(i, 0, 5, 400, 0);
+        let temp = map(i, 0, 5, 0, maxTemp);
+        text(int(temp), -10, y + 5);
+    }
+    
+    // Add labels
+    textAlign(CENTER);
+    textSize(14);
+    text("Month", 300, 460);
+    
+    push();
+    translate(-50, 200);
+    rotate(-HALF_PI);
+    text("Avg Temperature (°F)", 0, 0);
+    pop();
 }
 
 // Draw bars
-function drawBars(data, scales) {
-    svg.selectAll("rect")
-        .data(data)
-        .enter()
-        .append("rect")
-        .attr("x", d => scales.x(d.month))
-        .attr("y", d => scales.y(d.temp))
-        .attr("width", scales.x.bandwidth())
-        .attr("height", d => height - scales.y(d.temp))
-        .attr("fill", "steelblue")
-        .on("mouseover", function(event, d) {
-            showTooltip(d, scales);
-        })
-        .on("mouseout", function() {
-            hideTooltip();
-        });
+function drawBars(maxTemp, barWidth) {
+    for (let i = 0; i < data.length; i++) {
+        let x = i * barWidth;
+        let h = map(data[i].temp, 0, maxTemp, 0, 400);
+        let y = 400 - h;
+        
+        let isHovered = mouseX > 80 + x && mouseX < 80 + x + barWidth * 0.8 &&
+                       mouseY > 60 + y && mouseY < 460;
+        
+        if (isHovered) {
+            fill(255, 165, 0);
+            rect(x, y, barWidth * 0.8, h);
+            
+            fill(0);
+            textAlign(CENTER);
+            textSize(14);
+            text(data[i].temp.toFixed(1) + "°F", x + barWidth * 0.4, y - 10);
+        } else {
+            fill(70, 130, 180);
+            rect(x, y, barWidth * 0.8, h);
+        }
+    }
 }
 
-function showTooltip(d, scales) {
-    d3.select(event.currentTarget).attr("fill", "orange");
-    
-    svg.append("text")
-        .attr("class", "tooltip")
-        .attr("x", scales.x(d.month) + scales.x.bandwidth() / 2)
-        .attr("y", scales.y(d.temp) - 10)
-        .attr("text-anchor", "middle")
-        .style("font-weight", "bold")
-        .style("font-size", "14px")
-        .text(d.temp.toFixed(1) + "°F");
+function mouseMoved() {
+    redraw();
 }
-
-function hideTooltip() {
-    d3.select(event.currentTarget).attr("fill", "steelblue");
-    svg.selectAll(".tooltip").remove();
-}
-
-d3.csv("weather.csv").then(rawData => {
-    const validData = loadData(rawData);
-    const data = calculateMonthlyAverage(validData);
-    const scales = createScales(data);
-    
-    drawAxes(scales);
-    addLabels();
-    drawBars(data, scales);
-});
-
-// SOURCES BELOW:
-
-//D3.js Official Documentation
-// https://d3js.org/
-// For learning D3 syntax, scales, axes, and data binding
-
-
-// D3 Graph Gallery
-// https://d3-graph-gallery.com/
-// Examples of bar charts, scatter plots, and heatmaps
-
-
-// Observable D3 Tutorials
-// https://observablehq.com/@d3/learn-d3
-// Interactive D3 learning resources

@@ -1,0 +1,86 @@
+* {
+  font-family: "Raleway", sans-serif;
+  /* font-weight: <weight>; */
+  font-style: normal;
+  text-align: center;
+}
+
+a {
+    text-align: left;
+    display: block;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+    padding: 20px;
+}
+
+h1 {
+    color: #333;
+}
+
+h2 {
+    color: #666;
+    margin-top: 40px;
+}
+
+img {
+    width: 800px;
+    height: auto;
+    border: 1px solid #ddd;
+    margin-top: 20px;
+}
+
+/* ── Chart shared styles ── */
+.line-path {
+    fill: none;
+    stroke-width: 2.5px;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+}
+
+.dot {
+    cursor: pointer;
+}
+
+.axisLabel {
+    font-size: 13px;
+    font-weight: 600;
+    fill: #333;
+}
+
+.axis text {
+    font-size: 12px;
+    fill: #444;
+}
+
+.axis path,
+.axis line {
+    stroke: #aaa;
+}
+
+/* ── Tooltip ── */
+.tooltip {
+    position: absolute;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    padding: 8px 12px;
+    font-size: 12px;
+    pointer-events: none;
+    opacity: 0;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    line-height: 1.6;
+    text-align: left;
+}
+
+/* ── D3-legend overrides ── */
+.legendTitle {
+    font-size: 13px !important;
+    font-weight: bold;
+}
+
+.label {
+    font-size: 12px !important;
+}

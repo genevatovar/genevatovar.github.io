@@ -48,12 +48,12 @@ function drawGraph(data) {
     return { genre, values };
   })
   .filter(d => d.values.length >= 3)
-  .slice(0, 5); // keep at most 5 lines; we'll have at least 4 from top-8 candidates
+  .slice(0, 5); // this keeps at most 5 lines
 
   // The genres actually used (for color domain)
   const genres = lineData.map(d => d.genre);
 
-  // All years across all lines
+  // All of the years across lines
   const allYears = [...new Set(filtered.map(d => d.year))].sort(d3.ascending);
 
   // SCALES 
@@ -183,7 +183,7 @@ function drawGraph(data) {
     .style("fill", "#666")
     .text(`Top ${lineData.length} genres · ColorBrewer Dark2 qualitative scale`);
 
-  // D3-LEGEND (Susie Lu) — ordinal qualitative legend ---
+  // D3-LEGEND (Susie Lu) 
   const legendG = canvas.append("g")
     .attr("transform", `translate(${margin.left + plot_width + 20}, ${margin.top + 20})`);
 

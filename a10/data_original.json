@@ -1,0 +1,8 @@
+[
+  { "age_group": "18–24", "daily_minutes": 186 },
+  { "age_group": "25–34", "daily_minutes": 157 },
+  { "age_group": "35–44", "daily_minutes": 141 },
+  { "age_group": "45–54", "daily_minutes": 128 },
+  { "age_group": "55–64", "daily_minutes": 113 },
+  { "age_group": "65+",   "daily_minutes": 102 }
+]

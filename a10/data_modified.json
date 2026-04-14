@@ -1,0 +1,13 @@
+[
+  { "age_group": "18–20", "daily_minutes": 192 },
+  { "age_group": "21–24", "daily_minutes": 183 },
+  { "age_group": "25–29", "daily_minutes": 172 },
+  { "age_group": "30–34", "daily_minutes": 161 },
+  { "age_group": "35–39", "daily_minutes": 151 },
+  { "age_group": "40–44", "daily_minutes": 141 },
+  { "age_group": "45–49", "daily_minutes": 132 },
+  { "age_group": "50–54", "daily_minutes": 124 },
+  { "age_group": "55–59", "daily_minutes": 116 },
+  { "age_group": "60–64", "daily_minutes": 109 },
+  { "age_group": "65+",   "daily_minutes": 102 }
+]
